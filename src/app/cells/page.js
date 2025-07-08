@@ -1,87 +1,60 @@
 'use client';
 /*──────────────────────────────────────────────────────────────────────────────
-  ARCHIVO:  src/app/cells/page.js          (≈ 420 líneas con comentarios)
+  ARCHIVO:  src/app/cells/page.js
   OBJETIVO: Gestión completa de CÉLULAS (grupos) ─ CRUD + horario fijo
             – name, leader, dayOfWeek, hour
             – Vista listado  ·  Panel lateral detalle  ·  Modal alta / edición
-            – Persistencia en localStorage  (clave = 'cellsV2')
-            – Control de espacio con navigator.storage.estimate
-            – Componentes desacoplados en /src/components  (se entregarán luego):
+            – Persistencia en **Supabase**
+            – Componentes desacoplados en /src/components:
                  • CellCard
                  • CellSidePanel
                  • CellFormModal
 ──────────────────────────────────────────────────────────────────────────────*/
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import CellCard       from '@/components/CellCard';
 import CellSidePanel  from '@/components/CellSidePanel';
 import CellFormModal  from '@/components/CellFormModal';
+import { useTable }   from '@/hooks/useTable';
 
-/*──────────────────────────── Config / helpers básicos ──────────────────────*/
-const STORAGE_KEY = 'cellsV2';
-const DAYS_ES     = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];   // visual
-const HOUR_DEF    = '20:00';
-
-/* —— persistencia simple ——————————————————————————————————————— */
-const load = () => {
-  if (typeof window === 'undefined') return [];
-  try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) ?? []; }
-  catch { return []; }
-};
-
-async function hasRoom(str) {
-  if (!navigator.storage?.estimate) return true;
-  const { quota = 5_000_000, usage = 0 } = await navigator.storage.estimate();
-  return usage + new Blob([str]).size < quota - 100 * 1024;  // margen 100 kB
-}
-const save = async data => {
-  if (typeof window === 'undefined') return;
-  const str = JSON.stringify(data);
-  if (await hasRoom(str)) localStorage.setItem(STORAGE_KEY, str);
-  else alert('⚠️ Límite de almacenamiento local alcanzado: elimina registros.');
-};
+/*──────────────────────────── Constantes básicas ───────────────────────────*/
+const DAYS_ES  = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']; // visual
+const HOUR_DEF = '20:00';
 
 /*────────────────────────── Componente principal ───────────────────────────*/
 export default function CellsPage() {
-  /* — estado global — */
-  const [cells,      setCells]      = useState([]);
+  /*— conexión Supabase —*/
+  const {
+    data: cells = [],     // lista reactiva
+    upsert,               // crea / edita
+    remove                // elimina
+  } = useTable('cells');
+
+  /*— estado de interfaz —*/
   const [filterText, setFilterText] = useState('');
-  const [showModal,  setShowModal]  = useState(false);
-  const [editing,    setEditing]    = useState(null);   // celda que editamos
-  const [selected,   setSelected]   = useState(null);   // panel lateral
+  const [showModal , setShowModal ] = useState(false);
+  const [editing   , setEditing   ] = useState(null);   // célula que se edita
+  const [selected  , setSelected  ] = useState(null);   // célula en panel lateral
 
-  /* carga inicial + persistencia */
-  useEffect(() => setCells(load()), []);
-  useEffect(() => { save(cells); }, [cells]);
-
-  /* CRUD */
-  const upsert = cell => {
-    setCells(prev => {
-      const idx = prev.findIndex(c => c.id === cell.id);
-      return idx === -1
-        ? [...prev, cell]                    // crear
-        : prev.map(c => c.id===cell.id?cell:c); // editar
-    });
-  };
-
-  const deleteCell = id => {
-    if (!confirm('¿Eliminar esta célula? Se perderán los datos vinculados.')) return;
-    setCells(prev => prev.filter(c => c.id !== id));
-    if (selected?.id === id)   setSelected(null);
-    if (editing?.id  === id)   setEditing(null);
-  };
-
-  /* filtrado memorizado */
+  /*— derivado: lista filtrada —*/
   const visibles = useMemo(() => {
     const txt = filterText.trim().toLowerCase();
     return txt
       ? cells.filter(c =>
           c.name.toLowerCase().includes(txt) ||
-          c.leader.toLowerCase().includes(txt))
+          c.leader?.toLowerCase().includes(txt)
+        )
       : cells;
   }, [cells, filterText]);
 
-  /* — vista — */
+  /*— helpers —*/
+  const deleteCell = async (id) => {
+    if (!confirm('¿Eliminar esta célula? Se perderán los datos vinculados.')) return;
+    await remove(id);
+    if (selected?.id === id) setSelected(null);
+  };
+
+  /*────────────────────────────── Render ───────────────────────────────────*/
   return (
     <>
       {/* CABECERA */}
@@ -117,37 +90,33 @@ export default function CellsPage() {
         <CellCard
           key={c.id}
           cell={c}
-          onView={() => setSelected(c)}
-          onEdit={() => { setEditing(c); setShowModal(true); }}
-          onDelete={() => deleteCell(c.id)}
+          onView   ={() => setSelected(c)}
+          onEdit   ={() => { setEditing(c); setShowModal(true); }}
+          onDelete ={() => deleteCell(c.id)}
         />
       ))}
 
       {/* MODAL (alta / edición) */}
       {showModal && (
         <CellFormModal
-          onClose={() => setShowModal(false)}
-          onSave={upsert}
-          initial={editing}
-          /* valores por defecto */
-          defaultHour={HOUR_DEF}
+          onClose     ={() => setShowModal(false)}
+          onSave      ={upsert}
+          initial     ={editing}
+          defaultHour ={HOUR_DEF}
         />
       )}
 
       {/* PANEL LATERAL */}
       {selected && (
         <CellSidePanel
-          cell={selected}
-          onClose={() => setSelected(null)}
-          deleteCell={() => deleteCell(selected.id)}
+          cell      ={selected}
+          onClose   ={() => setSelected(null)}
+          onUpdate  ={upsert}
         />
       )}
     </>
   );
 }
 
-/*────────────────────────── Export utilitario ──────────────────────────────*/
-/*  Si otro módulo necesita los días en español:
-      import { DAYS_ES } from '@/app/cells/page';
-*/
+/*────────────────────────── Export utilitario ─────────────────────────────*/
 export { DAYS_ES };

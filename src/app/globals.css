@@ -1,26 +1,33 @@
-@import "tailwindcss";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
+/* —— Tema ——————————————————— */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --c-bg: #0077ff;
+  --c-fg: #1e293b;      /* slate-800 */
+  --c-accent: #3b82f6;  /* blue-500 */
 }
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
 @media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  :root { --c-bg:#0f172a; --c-fg:#0080ff; }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* —— Reset —————————————————— */
+*,::before,::after{box-sizing:border-box;margin:0;padding:0}
+html{font-family:system-ui,Inter,Arial,sans-serif;scroll-behavior:smooth}
+body{background:var(--c-bg);color:var(--c-fg);min-height:100dvh}
+
+/* —— Utilidades propias —— */
+.container{max-width:640px;margin-inline:auto;padding:0 1rem}
+.card{@apply bg-white dark:bg-slate-800 shadow rounded p-4 mb-3 flex flex-col gap-1}
+h1{font-size:1.5rem;font-weight:700;margin:1rem 0}
+
+/* —— Nav inferior ——————— */
+.nav-bottom{
+  position:fixed;bottom:0;left:0;width:100%;
+  background:var(--c-bg);border-top:1px solid #006eff;
+  display:flex;justify-content:space-around;z-index:50;
 }
+.nav-link{flex:1;text-align:center;padding:.6rem .3rem;font-size:.75rem}
+.nav-active{color:var(--c-accent);font-weight:600}
+@media (min-width:768px){ .nav-bottom{display:none} }

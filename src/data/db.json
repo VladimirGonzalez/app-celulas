@@ -1,0 +1,11 @@
+{
+  "cells": [
+    { "id": 1, "name": "Célula Bethel", "leader": "Pastor Gustavo" },
+    { "id": 2, "name": "Célula Alsina", "leader": "Vladimir Gonzalez" }
+  ],
+  "members": [
+    { "id": 1, "fullName": "Vladimir Gonzalez", "cellId": 1 },
+    { "id": 2, "fullName": "Alan Sanchez",      "cellId": 1 },
+    { "id": 3, "fullName": "Valentín Aliendro",  "cellId": 2 }
+  ]
+}
